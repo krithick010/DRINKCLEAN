@@ -3,21 +3,30 @@ import { SensorCard } from "../components/SensorCard";
 import { TrendChart } from "../components/TrendChart";
 import { useHistoryData } from "../hooks/useHistoryData";
 import { useSensorData } from "../hooks/useSensorData";
+import { useThresholds } from "../hooks/useThresholds";
 import { getStatus } from "../utils/thresholds";
+
+function getHistoryValues(history, key) {
+  return history
+    .map((entry) => entry[key])
+    .filter((value) => typeof value === "number" && !Number.isNaN(value))
+    .slice(-10);
+}
 
 export function Temperature() {
   const { data } = useSensorData();
+  const thresholds = useThresholds();
   const history = useHistoryData(50);
   const temperature = data?.temperature || {};
 
   const cards = [
-    { label: "Evaporator", value: temperature.evaporator, unit: "°C", status: getStatus("temperature", "evaporator", temperature.evaporator), icon: ThermometerSun },
-    { label: "Condenser", value: temperature.condenser, unit: "°C", status: getStatus("temperature", "condenser", temperature.condenser), icon: ThermometerSun },
-    { label: "Compressor Inlet", value: temperature.comp_inlet, unit: "°C", status: temperature.comp_inlet > 40 ? "warning" : "normal", icon: ThermometerSun },
-    { label: "Compressor Outlet", value: temperature.comp_outlet, unit: "°C", status: getStatus("temperature", "comp_outlet", temperature.comp_outlet), icon: ThermometerSun },
-    { label: "Solar Collector", value: temperature.solar_collector, unit: "°C", status: temperature.solar_collector > 90 ? "warning" : "normal", icon: ThermometerSun },
-    { label: "Feed Water", value: temperature.feed_water, unit: "°C", status: "normal", icon: ThermometerSun },
-    { label: "Purified Water", value: temperature.purified_water, unit: "°C", status: "normal", icon: ThermometerSun },
+    { label: "Evaporator", value: temperature.evaporator, unit: "°C", status: getStatus("temperature", "evaporator", temperature.evaporator, thresholds), icon: ThermometerSun, history: getHistoryValues(history, "t_ev") },
+    { label: "Condenser", value: temperature.condenser, unit: "°C", status: getStatus("temperature", "condenser", temperature.condenser, thresholds), icon: ThermometerSun, history: getHistoryValues(history, "t_co") },
+    { label: "Compressor Inlet", value: temperature.comp_inlet, unit: "°C", status: temperature.comp_inlet > 40 ? "warning" : "normal", icon: ThermometerSun, history: [] },
+    { label: "Compressor Outlet", value: temperature.comp_outlet, unit: "°C", status: getStatus("temperature", "comp_outlet", temperature.comp_outlet, thresholds), icon: ThermometerSun, history: getHistoryValues(history, "comp_outlet") },
+    { label: "Solar Collector", value: temperature.solar_collector, unit: "°C", status: temperature.solar_collector > 90 ? "warning" : "normal", icon: ThermometerSun, history: getHistoryValues(history, "t_sc") },
+    { label: "Feed Water", value: temperature.feed_water, unit: "°C", status: "normal", icon: ThermometerSun, history: [] },
+    { label: "Purified Water", value: temperature.purified_water, unit: "°C", status: "normal", icon: ThermometerSun, history: [] },
   ];
 
   const chartData = history.map((entry) => ({

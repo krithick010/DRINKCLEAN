@@ -4,6 +4,13 @@ import { TrendChart } from "../components/TrendChart";
 import { useHistoryData } from "../hooks/useHistoryData";
 import { useSensorData } from "../hooks/useSensorData";
 
+function getHistoryValues(history, key) {
+  return history
+    .map((entry) => entry[key])
+    .filter((value) => typeof value === "number" && !Number.isNaN(value))
+    .slice(-10);
+}
+
 export function Power() {
   const { data } = useSensorData();
   const history = useHistoryData(50);
@@ -15,10 +22,10 @@ export function Power() {
   }));
 
   const cards = [
-    { label: "Voltage", value: power.voltage, unit: "V", status: "normal", icon: PowerIcon },
-    { label: "Current", value: power.current, unit: "A", status: "normal", icon: PowerIcon },
-    { label: "Power", value: power.power_consumption, unit: "W", status: Number(power.power_consumption) > 1000 ? "warning" : "normal", icon: Zap },
-    { label: "Energy Today", value: power.energy_today, unit: "kWh", status: "normal", icon: Zap },
+    { label: "Voltage", value: power.voltage, unit: "V", status: "normal", icon: PowerIcon, history: [] },
+    { label: "Current", value: power.current, unit: "A", status: "normal", icon: PowerIcon, history: [] },
+    { label: "Power", value: power.power_consumption, unit: "W", status: Number(power.power_consumption) > 1000 ? "warning" : "normal", icon: Zap, history: getHistoryValues(history, "pwr") },
+    { label: "Energy Today", value: power.energy_today, unit: "kWh", status: "normal", icon: Zap, history: [] },
   ];
 
   return (

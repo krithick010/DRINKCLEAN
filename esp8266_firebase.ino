@@ -92,6 +92,7 @@ void writeHistory(const JsonDocument& data, unsigned long ts) {
   historyJson.set("ts", ts);
   historyJson.set("t_ev", data["temperature"]["evaporator"] | 0.0);
   historyJson.set("t_co", data["temperature"]["condenser"] | 0.0);
+  historyJson.set("comp_outlet", data["temperature"]["comp_outlet"] | 0.0);
   historyJson.set("t_sc", data["temperature"]["solar_collector"] | 0.0);
   historyJson.set("p_su", data["pressure"]["suction"] | 0.0);
   historyJson.set("p_di", data["pressure"]["discharge"] | 0.0);

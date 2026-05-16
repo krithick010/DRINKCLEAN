@@ -1,26 +1,35 @@
 import { useEffect, useState } from "react";
-import { limitToLast, onValue, orderByKey, query, ref } from "firebase/database";
-import { db } from "../firebase";
+import { getHistory } from "../api";
 
 export function useHistoryData(limit = 50) {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    const historyRef = query(ref(db, "/history"), orderByKey(), limitToLast(limit));
-
-    const unsubscribe = onValue(historyRef, (snapshot) => {
-      const raw = snapshot.val();
-
-      if (!raw) {
-        setHistory([]);
-        return;
+    let isMounted = true;
+    
+    const fetchHistory = async () => {
+      try {
+        const data = await getHistory(limit);
+        if (isMounted) {
+          const entries = Array.isArray(data)
+            ? data.sort((a, b) => (a.ts || 0) - (b.ts || 0))
+            : [];
+          setHistory(entries);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setHistory([]);
+        }
       }
+    };
 
-      const entries = Object.values(raw).sort((a, b) => a.ts - b.ts);
-      setHistory(entries);
-    });
+    fetchHistory();
+    const interval = setInterval(fetchHistory, 5000);
 
-    return () => unsubscribe();
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, [limit]);
 
   return history;

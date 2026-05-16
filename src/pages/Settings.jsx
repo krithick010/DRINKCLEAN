@@ -1,34 +1,53 @@
-import { useState } from "react";
-import { ref, set } from "firebase/database";
-import { Download, Zap, Database, Droplets } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, Zap, Database, Droplets, RotateCcw, Save } from "lucide-react";
 import { useHistoryData } from "../hooks/useHistoryData";
 import { useSensorData } from "../hooks/useSensorData";
-import { db } from "../firebase";
+import { useThresholds } from "../hooks/useThresholds";
+import { updateRefrigerant, updateThresholds } from "../api";
+import { exportCSV } from "../utils/exportCSV";
+import { thresholds as defaultThresholds } from "../utils/thresholds";
 
-function exportCSV(history) {
-  const headers = ["timestamp", "t_ev", "t_co", "t_sc", "p_su", "p_di", "tds", "ph", "sol", "pwr"];
-  const rows = history.map((item) => {
-    const timestamp = item.ts ? new Date(item.ts * 1000).toISOString() : "";
-    return [timestamp, item.t_ev, item.t_co, item.t_sc, item.p_su, item.p_di, item.tds, item.ph, item.sol, item.pwr]
-      .map(v => v ?? "")
-      .join(",");
-  });
-  const csv = [headers.join(","), ...rows].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `desalination_data_${Date.now()}.csv`;
-  anchor.click();
-  URL.revokeObjectURL(url);
+function cloneThresholds(source) {
+  return JSON.parse(JSON.stringify(source));
 }
+
+function formatThresholdLabel(value) {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+const thresholdSectionOrder = ["temperature", "pressure", "water_quality", "flow", "power", "solar"];
+
+const thresholdSectionTitles = {
+  temperature: "Temperature Thresholds",
+  pressure: "Pressure Thresholds",
+  water_quality: "Water Quality Thresholds",
+  flow: "Flow Thresholds",
+  power: "Power Thresholds",
+  solar: "Solar Thresholds",
+};
 
 export function Settings() {
   const history = useHistoryData(100);
   const { data, lastUpdated } = useSensorData();
+  const mergedThresholds = useThresholds();
   const [rate, setRate] = useState(localStorage.getItem("electricityRate") || "8.5");
   const [selectedRefrigerant, setSelectedRefrigerant] = useState(data?.system?.refrigerant || "R134a");
   const [saving, setSaving] = useState(false);
+  const [savingThresholds, setSavingThresholds] = useState(false);
+  const [editedThresholds, setEditedThresholds] = useState(() => cloneThresholds(defaultThresholds));
+
+  useEffect(() => {
+    setEditedThresholds(cloneThresholds(mergedThresholds));
+  }, [mergedThresholds]);
+
+  useEffect(() => {
+    if (data?.system?.refrigerant) {
+      setSelectedRefrigerant(data.system.refrigerant);
+    }
+  }, [data?.system?.refrigerant]);
 
   const saveRate = (event) => {
     const nextRate = event.target.value;
@@ -39,12 +58,40 @@ export function Settings() {
   const saveRefrigerant = async () => {
     setSaving(true);
     try {
-      await set(ref(db, "/sensorData/system/refrigerant"), selectedRefrigerant);
+      await updateRefrigerant(selectedRefrigerant);
       setTimeout(() => setSaving(false), 500);
     } catch (error) {
       console.error("Failed to save refrigerant:", error);
       setSaving(false);
     }
+  };
+
+  const updateThresholdValue = (categoryKey, sensorKey, fieldKey, nextValue) => {
+    setEditedThresholds((current) => ({
+      ...current,
+      [categoryKey]: {
+        ...current[categoryKey],
+        [sensorKey]: {
+          ...current[categoryKey][sensorKey],
+          [fieldKey]: nextValue === "" ? "" : Number(nextValue),
+        },
+      },
+    }));
+  };
+
+  const saveThresholdsClick = async () => {
+    setSavingThresholds(true);
+    try {
+      await updateThresholds(editedThresholds);
+      setTimeout(() => setSavingThresholds(false), 500);
+    } catch (error) {
+      console.error("Failed to save thresholds:", error);
+      setSavingThresholds(false);
+    }
+  };
+
+  const resetThresholds = () => {
+    setEditedThresholds(cloneThresholds(defaultThresholds));
   };
 
   return (
@@ -98,7 +145,80 @@ export function Settings() {
               {saving ? "Saving..." : "Save"}
             </button>
           </div>
-          <p className="mt-2 text-xs text-slate-500">Writes to Firebase /sensorData/system/refrigerant</p>
+          <p className="mt-2 text-xs text-slate-500">Saved locally in database</p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-[#111827] p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-slate-400">
+              <Droplets size={16} />
+              <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Alert Thresholds</p>
+            </div>
+            <h4 className="mt-2 text-lg font-semibold text-slate-50">Editable alert configuration</h4>
+            <p className="mt-1 text-sm text-slate-400">Changes are saved locally in the database.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={resetThresholds}
+              className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-300 hover:border-slate-600 hover:text-slate-100"
+            >
+              <RotateCcw size={16} />
+              Reset to Defaults
+            </button>
+            <button
+              type="button"
+              onClick={saveThresholdsClick}
+              disabled={savingThresholds}
+              className="flex items-center gap-2 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm text-cyan-100 hover:bg-cyan-400/20 disabled:opacity-50"
+            >
+              <Save size={16} />
+              {savingThresholds ? "Saving..." : "Save Thresholds"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          {thresholdSectionOrder.map((categoryKey) => {
+            const section = editedThresholds[categoryKey];
+
+            if (!section) {
+              return null;
+            }
+
+            return (
+              <div key={categoryKey} className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h5 className="text-sm font-semibold text-slate-100">{thresholdSectionTitles[categoryKey]}</h5>
+                  <span className="text-xs uppercase tracking-[0.18em] text-slate-500">{categoryKey}</span>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
+                  {Object.entries(section).map(([sensorKey, sensorRules]) => (
+                    <div key={sensorKey} className="rounded-lg border border-slate-800 bg-[#111827] p-4">
+                      <h6 className="text-sm font-medium text-slate-200">{formatThresholdLabel(sensorKey)}</h6>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        {Object.entries(sensorRules).map(([fieldKey, fieldValue]) => (
+                          <label key={fieldKey} className="space-y-1 text-xs text-slate-400">
+                            <span>{formatThresholdLabel(fieldKey)}</span>
+                            <input
+                              type="number"
+                              step="any"
+                              value={fieldValue}
+                              onChange={(event) => updateThresholdValue(categoryKey, sensorKey, fieldKey, event.target.value)}
+                              className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400"
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -145,12 +265,12 @@ export function Settings() {
             <span className="font-mono">{data?.system?.uptime || "--"}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">Firebase:</span>
-            <span className="font-mono text-green-400">{import.meta.env.VITE_FIREBASE_API_KEY ? "Connected" : "Not configured"}</span>
+            <span className="text-slate-500">Server Status:</span>
+            <span className="font-mono text-green-400">Connected (Local)</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-500">Database URL:</span>
-            <span className="truncate font-mono text-xs">{import.meta.env.VITE_FIREBASE_DATABASE_URL || "--"}</span>
+            <span className="text-slate-500">Database:</span>
+            <span className="truncate font-mono text-xs">localhost:3001</span>
           </div>
         </div>
       </div>

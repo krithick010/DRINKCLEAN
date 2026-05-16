@@ -4,6 +4,12 @@ const statusMap = {
   warning: { label: "⚠ Warning", className: "bg-amber-500 text-white" },
   critical: { label: "✕ Critical", className: "bg-red-600 text-white" },
   safe: { label: "✓ Safe", className: "bg-emerald-500 text-white" },
+  SAFE: { label: "✓ SAFE", className: "bg-emerald-500 text-white" },
+  BORDERLINE: { label: "⚠ BORDERLINE", className: "bg-amber-500 text-white" },
+  UNSAFE: { label: "✕ UNSAFE", className: "bg-red-600 text-white" },
+  good: { label: "✓ Good", className: "bg-emerald-500 text-white" },
+  watch: { label: "⚠ Watch", className: "bg-amber-500 text-white" },
+  "service-soon": { label: "✕ Service Soon", className: "bg-red-600 text-white" },
 };
 
 export function StatusBadge({ status = "offline" }) {

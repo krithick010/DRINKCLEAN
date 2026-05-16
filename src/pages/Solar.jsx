@@ -5,6 +5,13 @@ import { TrendChart } from "../components/TrendChart";
 import { useHistoryData } from "../hooks/useHistoryData";
 import { useSensorData } from "../hooks/useSensorData";
 
+function getHistoryValues(history, key) {
+  return history
+    .map((entry) => entry[key])
+    .filter((value) => typeof value === "number" && !Number.isNaN(value))
+    .slice(-10);
+}
+
 export function Solar() {
   const { data } = useSensorData();
   const history = useHistoryData(50);
@@ -27,8 +34,8 @@ export function Solar() {
 
       <div className="grid gap-4 xl:grid-cols-3">
         <GaugeChart value={irradiance} min={0} max={1200} color="#f59e0b" label="Solar Irradiance" unit="W/m²" />
-        <SensorCard label="Solar Condition" value={condition} unit="" status={irradiance > 400 ? "normal" : "warning"} icon={SunMedium} digits={0} />
-        <SensorCard label="Collector Temp" value={temperature.solar_collector} unit="°C" status={temperature.solar_collector > 90 ? "warning" : "normal"} icon={SunMedium} />
+        <SensorCard label="Solar Condition" value={condition} unit="" status={irradiance > 400 ? "normal" : "warning"} icon={SunMedium} digits={0} history={getHistoryValues(history, "sol")} />
+        <SensorCard label="Collector Temp" value={temperature.solar_collector} unit="°C" status={temperature.solar_collector > 90 ? "warning" : "normal"} icon={SunMedium} history={getHistoryValues(history, "t_sc")} />
       </div>
 
       <TrendChart data={chartData} xKey="timeLabel" label="Irradiance Trend" dataKey="sol" color="#f59e0b" type="area" />

@@ -1,0 +1,109 @@
+{
+  "sensorData": {
+    "temperature": 45.2,
+    "pressure": 18.5,
+    "flowRate": 2.3,
+    "waterQuality": {
+      "pH": 7.2,
+      "turbidity": 0.3,
+      "conductivity": 450,
+      "totalDissolvedSolids": 280
+    },
+    "power": {
+      "current": 15.8,
+      "voltage": 230,
+      "frequency": 50
+    },
+    "solar": {
+      "voltage": 48.5,
+      "current": 12.3,
+      "power": 596
+    },
+    "system": {
+      "compressorRunHours": 2450,
+      "refrigerant": "R134a",
+      "pumpStatus": "RUNNING",
+      "lastServiceDate": "2025-10-15"
+    },
+    "timestamp": 1684230353796
+  },
+  "config": {
+    "thresholds": {
+      "temperature": {
+        "compressor": {
+          "min": 2,
+          "max": 60
+        },
+        "condenser": {
+          "min": 20,
+          "max": 70
+        }
+      },
+      "pressure": {
+        "suction": {
+          "min": 1,
+          "max": 8
+        },
+        "discharge": {
+          "min": 15,
+          "max": 35
+        }
+      },
+      "water_quality": {
+        "pH": {
+          "min": 6.5,
+          "max": 8
+        },
+        "turbidity": {
+          "min": 0,
+          "max": 1
+        },
+        "conductivity": {
+          "min": 0,
+          "max": 1000
+        },
+        "totalDissolvedSolids": {
+          "min": 0,
+          "max": 500
+        }
+      },
+      "flow": {
+        "flowRate": {
+          "min": 0.5,
+          "max": 5
+        }
+      },
+      "power": {
+        "voltage": {
+          "min": 200,
+          "max": 260
+        },
+        "frequency": {
+          "min": 48,
+          "max": 52
+        },
+        "current": {
+          "min": 0,
+          "max": 30
+        }
+      },
+      "solar": {
+        "voltage": {
+          "min": 0,
+          "max": 60
+        },
+        "current": {
+          "min": 0,
+          "max": 20
+        },
+        "power": {
+          "min": 0,
+          "max": 1000
+        }
+      }
+    }
+  },
+  "alerts": {},
+  "dailyStats": {},
+  "history": {}
+}
