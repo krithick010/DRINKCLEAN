@@ -53,6 +53,7 @@ export function Temperature() {
         data={chartData}
         xKey="timeLabel"
         label="Temperature Trends"
+        predict={true}
         series={[
           { dataKey: "t_ev", color: "#00d4ff", label: "Evaporator" },
           { dataKey: "t_co", color: "#22c55e", label: "Condenser" },

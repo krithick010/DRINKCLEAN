@@ -80,8 +80,8 @@ export function WaterQuality() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <TrendChart data={chartData} xKey="timeLabel" label="TDS Trend" dataKey="tds" color="#00d4ff" />
-        <TrendChart data={chartData} xKey="timeLabel" label="pH Trend" dataKey="ph" color="#22c55e" />
+        <TrendChart data={chartData} xKey="timeLabel" label="TDS Trend" dataKey="tds" color="#00d4ff" predict={true} />
+        <TrendChart data={chartData} xKey="timeLabel" label="pH Trend" dataKey="ph" color="#22c55e" predict={true} />
       </div>
     </div>
   );

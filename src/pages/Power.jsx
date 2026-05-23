@@ -41,7 +41,7 @@ export function Power() {
         ))}
       </div>
 
-      <TrendChart data={chartData} xKey="timeLabel" label="Power Consumption Trend" dataKey="pwr" color="#00d4ff" type="area" />
+      <TrendChart data={chartData} xKey="timeLabel" label="Power Consumption Trend" dataKey="pwr" color="#00d4ff" type="area" predict={true} />
     </div>
   );
 }

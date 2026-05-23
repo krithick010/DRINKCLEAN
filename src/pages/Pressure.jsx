@@ -38,8 +38,7 @@ export function Pressure() {
       <TrendChart
         data={chartData}
         xKey="timeLabel"
-        label="Pressure Trends"
-        series={[
+        label="Pressure Trends"        predict={true}        series={[
           { dataKey: "p_su", color: "#00d4ff", label: "Suction" },
           { dataKey: "p_di", color: "#22c55e", label: "Discharge" },
         ]}
