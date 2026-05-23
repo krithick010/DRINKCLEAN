@@ -1,68 +1,79 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+import { ref, onValue, get, child, set, push } from "firebase/database";
+import { db } from "./firebase";
 
-// Real-time listeners (simulated with polling)
-const listeners = new Map();
+const defaultThresholds = {
+  temperature: {
+    evaporator: { min: 2, max: 15 },
+    condenser: { min: 30, max: 60 },
+    comp_outlet: { min: 40, max: 110 }
+  },
+  pressure: {
+    suction: { min: 2, max: 5 },
+    discharge: { min: 10, max: 20 }
+  },
+  water_quality: {
+    tds: { max: 500 },
+    ph: { min: 6.5, max: 8.5 }
+  }
+};
 
 export function setupDataListener(path, callback) {
-  const poll = async () => {
-    try {
-      const endpoint = mapPathToEndpoint(path);
-      const response = await fetch(`${API_URL}${endpoint}`);
-      const data = await response.json();
-      callback({ val: () => data });
-    } catch (error) {
-      console.error(`Error fetching ${path}:`, error);
-      callback({ val: () => null });
-    }
-  };
+  // Mapping paths to match firebase structure
+  let mappedPath = path;
+  if (path === '/sensorData') mappedPath = 'sensorData';
+  if (path === '/config/thresholds') mappedPath = 'thresholds';
+  if (path === '/alerts') mappedPath = 'alerts';
+  if (path === '/dailyStats') mappedPath = 'dailyStats';
+  if (path === '/history') mappedPath = 'history';
 
-  // Initial poll
-  poll();
-
-  // Set up polling interval
-  const interval = setInterval(poll, 2000);
-
-  // Return unsubscribe function
-  return () => clearInterval(interval);
-}
-
-function mapPathToEndpoint(path) {
-  if (path === '/sensorData') return '/sensor-data';
-  if (path === '/config/thresholds') return '/thresholds';
-  if (path === '/alerts') return '/alerts';
-  if (path === '/dailyStats') return '/daily-stats';
-  if (path === '/history') return '/history';
-  return path;
+  const dbRef = ref(db, mappedPath);
+  return onValue(dbRef, (snapshot) => {
+    callback({ val: () => snapshot.val() });
+  }, (error) => {
+    console.error(`Error fetching ${mappedPath} from Firebase:`, error);
+    callback({ val: () => null });
+  });
 }
 
 export async function getSensorData() {
   try {
-    const response = await fetch(`${API_URL}/sensor-data`);
-    return response.json();
+    const snapshot = await get(child(ref(db), 'sensorData'));
+    return snapshot.exists() ? snapshot.val() : null;
   } catch (error) {
-    console.error('Error fetching sensor data:', error);
+    console.error('Error fetching sensor data from Firebase:', error);
     return null;
+  }
+}
+
+export async function getHistory(limitCount = 50) {
+  try {
+    const snapshot = await get(child(ref(db), 'history'));
+    if (snapshot.exists()) {
+      const historyObj = snapshot.val();
+      const historyArray = Object.values(historyObj).sort((a, b) => a.ts - b.ts);
+      return historyArray.slice(-limitCount);
+    }
+    return [];
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    return [];
   }
 }
 
 export async function getThresholds() {
   try {
-    const response = await fetch(`${API_URL}/thresholds`);
-    return response.json();
+    const snapshot = await get(child(ref(db), 'thresholds'));
+    return snapshot.exists() ? snapshot.val() : defaultThresholds;
   } catch (error) {
     console.error('Error fetching thresholds:', error);
-    return null;
+    return defaultThresholds;
   }
 }
 
 export async function updateThresholds(thresholds) {
   try {
-    const response = await fetch(`${API_URL}/thresholds`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(thresholds),
-    });
-    return response.json();
+    await set(ref(db, 'thresholds'), thresholds);
+    return thresholds;
   } catch (error) {
     console.error('Error updating thresholds:', error);
     throw error;
@@ -71,8 +82,12 @@ export async function updateThresholds(thresholds) {
 
 export async function getAlerts() {
   try {
-    const response = await fetch(`${API_URL}/alerts`);
-    return response.json();
+    const snapshot = await get(child(ref(db), 'alerts'));
+    if (snapshot.exists()) {
+      const alertsObj = snapshot.val();
+      return Object.values(alertsObj).sort((a, b) => b.ts - a.ts);
+    }
+    return [];
   } catch (error) {
     console.error('Error fetching alerts:', error);
     return [];
@@ -81,87 +96,53 @@ export async function getAlerts() {
 
 export async function addAlert(alert) {
   try {
-    const response = await fetch(`${API_URL}/alerts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(alert),
-    });
-    return response.json();
+    const alertsRef = ref(db, 'alerts');
+    const newAlertRef = push(alertsRef);
+    await set(newAlertRef, alert);
+    return { id: newAlertRef.key, ...alert };
   } catch (error) {
     console.error('Error adding alert:', error);
     throw error;
   }
 }
 
-export async function updateAlert(id, updates) {
+export async function getDailyStats() {
   try {
-    const response = await fetch(`${API_URL}/alerts/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    });
-    return response.json();
+    const snapshot = await get(child(ref(db), 'dailyStats'));
+    if (snapshot.exists()) {
+      const statsObj = snapshot.val();
+      return Object.values(statsObj).sort((a, b) => new Date(a.date) - new Date(b.date));
+    }
+    return [];
+  } catch (error) {
+    return [];
+  }
+}
+
+export async function deleteAllAlerts() {
+  try {
+    await set(ref(db, 'alerts'), null);
+  } catch (error) {
+    console.error('Error deleting all alerts:', error);
+    throw error;
+  }
+}
+
+export async function updateAlert(alertId, updates) {
+  try {
+    await update(ref(db, `alerts/${alertId}`), updates);
   } catch (error) {
     console.error('Error updating alert:', error);
     throw error;
   }
 }
 
-export async function deleteAllAlerts() {
+export async function updateRefrigerant(type) {
   try {
-    const response = await fetch(`${API_URL}/alerts`, { method: 'DELETE' });
-    return response.json();
-  } catch (error) {
-    console.error('Error clearing alerts:', error);
-    throw error;
-  }
-}
-
-export async function deleteAlert(id) {
-  try {
-    const response = await fetch(`${API_URL}/alerts/${id}`, { method: 'DELETE' });
-    return response.json();
-  } catch (error) {
-    console.error('Error deleting alert:', error);
-    throw error;
-  }
-}
-
-export async function getDailyStats() {
-  try {
-    const response = await fetch(`${API_URL}/daily-stats`);
-    return response.json();
-  } catch (error) {
-    console.error('Error fetching daily stats:', error);
-    return [];
-  }
-}
-
-export async function getHistory(limit = 50) {
-  try {
-    const response = await fetch(`${API_URL}/history?limit=${limit}`);
-    return response.json();
-  } catch (error) {
-    console.error('Error fetching history:', error);
-    return [];
-  }
-}
-
-export async function updateRefrigerant(refrigerant) {
-  try {
-    const response = await fetch(`${API_URL}/sensor-data/system/refrigerant`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refrigerant }),
-    });
-    return response.json();
+    await set(ref(db, 'sensorData/system/refrigerant'), type);
+    return type;
   } catch (error) {
     console.error('Error updating refrigerant:', error);
     throw error;
   }
 }
-
-// Alias for compatibility
-export const db = {
-  setupListener: setupDataListener,
-};
